@@ -1,0 +1,178 @@
+---
+title: "Brief statistical data analysis on tooth growth data"
+author: "Andra T."
+date: "31st of January 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Summary
+In this project we aim to do a basic statistical analysis on the ToothGrowth data from the *datasets* package.
+
+#Data 
+The response is the length of odontoblasts (cells responsible for tooth growth) in 60 guinea pigs. Each animal received one of three dose levels of vitamin C (0.5, 1, and 2 mg/day) by one of two delivery methods, (orange juice or ascorbic acid (a form of vitamin C and coded as VC).
+
+The data is summarized in a data frame with 60 observations on 3 variables:
+
+* len  - tooth length  
+  
+* supp - supplement type (VC - ascorbic acid or OJ -orange juice)
+
+* dose - dose in milligrams per day 
+
+
+
+
+``` {r echo=TRUE}
+library(datasets)
+tooth<-ToothGrowth
+head(tooth)
+str(tooth)
+```
+
+## Exploratory data analysis ##
+
+The first step is to compare the tooth growth based on dosage between the two supplements .
+
+``` {r message=FALSE}
+
+library(ggplot2)
+library(dplyr)
+
+```
+
+``` {r echo=TRUE}
+
+tooth$dose<-as.factor(tooth$dose)
+ggplot(data=tooth, aes(x=dose, y=len, fill=supp)) + geom_bar(stat="identity",) + 
+facet_grid(. ~ supp)+
+labs(x="Dosage (mg)", y=expression("Tooth length ")) + theme_minimal()+
+ggtitle("Overview of tooth growth by supplement and dosage")+ 
+theme(plot.title = element_text( color="#666666", face="bold", size=15, hjust=0.5)) +
+theme(axis.title = element_text( color="#666666", face="bold", size=13)) + 
+guides(fill=guide_legend(title="Supplement type",face="bold", size=13))
+
+```
+
+We can observe from the graph above that overall, the guinea pigs that received Vitamin C from Orange juive have a higher level of tooth growth, regardless of the dosage - compared to the guinea pigs that received it from Ascorbic Acid. 
+
+
+Next, we would like to find out how the dosage alone is influencing the tooth growth, regardless of the mode of administration. 
+
+``` {r echo=TRUE}
+
+ggplot(aes(x=dose, y=len), data=tooth) + geom_boxplot(aes(fill=dose)) + 
+xlab("Dosage(mg)") + 
+ylab("Tooth length") + guides(fill=guide_legend(title="Dosage"))+theme_minimal()+
+ggtitle("Dosage influence on tooth growth")+ 
+theme(plot.title = element_text( color="#666666", face="bold", size=15, hjust=0.5)) +
+theme(axis.title = element_text( color="#666666", face="bold", size=13))
+
+
+
+tooth %>% group_by(dose) %>% 
+  summarize(
+    mean= mean(len),
+    q25 = quantile(len, 0.25),
+    q75 = quantile(len, 0.75)
+    ) %>% 
+  as.data.frame
+
+
+``` 
+
+Although we have some outliers for the lowest dosage at tooth length ~20, we can observe that the highest the administered dose is, the highest the tooth growth. 
+
+However, there are very large differences between the three dosage groups (non overlapping interquartile ranges)
+
+If we look at the dosage groups by supplement types, we can observe a similar increasing trend : dosage increases, tooth length increases regardless of supplement. 
+
+``` {r echo=TRUE}
+ggplot(aes(x=dose, y=len,fill=supp), data=tooth) + geom_boxplot(aes(fill=dose)) + 
+xlab("Dosage(mg)") + 
+facet_grid(. ~ supp)+
+ylab("Tooth length") + guides(fill=guide_legend(title="Dosage"))+theme_minimal()+
+ggtitle("Dosage influence on tooth growth by supplement")+ 
+theme(plot.title = element_text( color="#666666", face="bold", size=15, hjust=0.5)) +
+theme(axis.title = element_text( color="#666666", face="bold", size=13))
+
+```
+
+
+
+## Hypothesis testing 
+
+Assumptions:
+
+ * Independence : the guinea pigs have been assigned randomly to the two groups (OJ and VC)
+ 
+ * Normal population from which the guinea pigs have been selected ; the population is representative for an entire population of guinea pigs. 
+ 
+ * For hypothesis testing we assume that the variances are different for the two groups. 
+
+### Supplement types affect tooth growth ###
+HO: The difference in tooth growth means between OJ guinea pigs and VC guinea pigs is !=0 
+
+
+``` {r echo=TRUE}
+t.test(len ~ supp, ToothGrowth, var.equal = FALSE)
+
+```
+
+The p-value in this case is 0.06 which is greater than the 0.05 (significance threshold).
+The 95 percent confidence interval is [-0.1710156 , 7.5710156] , containing 0.  
+
+The null hypothesis cannot be rejected :
+
+## <span style="color:#A26C9D">Conclusion 1 : Vitamin C supplement types do not affect tooth growth in guinea pigs. </span>
+
+
+
+### Increased Vitamin C dosage levels are influencing tooth growth ###
+
+In order to test the hypothesis above, we will look at the influence of increasing doses (in pairs) on tooth growth . 
+ 
+**Case 1 :  Dosages 0.5mg -0.1 mg** 
+
+HO: The difference in tooth growth means between the guinea pigs with 0.5 mg  and 1 mg Vitamin C administration is 0
+
+```{r echo=TRUE}
+
+
+tooth1<-subset(tooth, tooth$dose==0.5 | tooth$dose==1)
+t.test(len ~ dose, data = tooth1)
+
+```
+
+**Case 2: Dosages 0.5mg - 2mg** 
+
+HO: The difference in tooth growth means between the guinea pigs with 0.5 mg  and 2 mg Vitamin C administration is 0
+
+```{r echo=TRUE}
+
+
+tooth2<-subset(tooth, tooth$dose==0.5 | tooth$dose==2)
+t.test(len ~ dose, data = tooth2)
+
+```
+
+**Case 3: Dosages 1mg - 2mg** 
+
+HO: The difference in tooth growth means between the guinea pigs with 1 mg  and 2 mg Vitamin C administration is 0
+
+```{r echo=TRUE}
+
+
+tooth3<-subset(tooth, tooth$dose==1 | tooth$dose==2)
+t.test(len ~ dose, data = tooth3)
+
+```
+
+
+The p-values in all three cases tested above are much lower than the significance level 0.05. In this case we reject the null hypotheses listed in each case. 
+
+
+## <span style="color:#A26C9D">Conclusion 2: Increasing the Vitamin C dosage level will positively affect tooth growth in guinea pigs. </span>
